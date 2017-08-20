@@ -19,11 +19,11 @@ class SingleWriterRingBuffer
 
 public:
 
-    SingleWriterRingBuffer(std::size_t capacity)
-        : begin(allocate(++capacity)), // pointer to first element in buffer
-          end(begin + capacity),     // pointer to last element in buffer
-          head(begin),
-          tail(begin)
+    SingleWriterRingBuffer(const std::size_t capacity)
+        : first(allocate(capacity)), // pointer to first element in buffer
+          last(first + capacity),    // pointer to last element in buffer
+          head(first),
+          tail(first)
     {}
 
     ~SingleWriterRingBuffer()
@@ -33,85 +33,40 @@ public:
 
     template<typename ...Args>
     std::enable_if<std::is_nothrow_constructible<T, ...Args>::value>::type
-    emplace_front(Args &&..args)
+    emplace_front(Args &&...args)
     {
         // advance head
-        std::atomic_thread_fence(std::memory_order_acquire);
+        // std::atomic_thread_fence(std::memory_order_acquire);
+        T *next_head;
+        T *next_tail;
 
+        T *const slot = head.load(std::memory_order_relaxed);
 
-        T *prev_head = last;
-
-        if (head.compare_exchange_weak(prev_head,
-                                       begin,
-                                       std::memory_order_acquire,
-                                       std::memory_order_acquire)) {
-            slot = begin;
-
-        } else {
-
-            slot = kk
-            while ()
-
-
-        }
-
-        T *const slot = head.fetch_add(1,
-                                       std::memory_order_relaxed);
-
-        std::atomic_thread_fence(std::memory_order_release);
-
-        T *slot;
-
-        while (1) {
-                next_slot = begin;
-                break;
-            }
-
-            next_slot = head.fetch_add(1,
-                                       std::memory_order_relaxed);
-
-            assert(next_slot < end)
-
-
-        }
-
-
-            next_slot = begin;
-
-            } else {
-
-            }
-        }
-
-            
-        // advance tail unconditionally
-
-        if 
-        T *prev_tail = tail.exchange
-        T *const prev_tail = tail.fetch_add(1,
-                                            std::memory_order_relaxed);
-
-        // if previous tail overlaps with head, destroy
-        if (prev_tail == head.load(std::memory_order_relaxed)) {
-            prev_tail->~T();
-
-            // if tail has advanced off end, restore to begining
-            (void) tail.compare_exchange_weak(end,
-                                              begin,
-                                              std::memory_order_relaxed,
-                                              std::memory_order_relaxed);
+        if (slot == last) {
+            next_head = first;
+            next_tail = next_head + 1;
 
         } else {
-            tail.store(prev_tail,
-                       std::memory_order_relaxed); // restore previous value
+            next_head = slot + 1;
+            next_tail = (next_head == last) ? first : (next_head + 1);
         }
 
-        // construct into empty memory
-        (void) new(head) T(std::forward<Args>(args)...);
+        // advance tail if next_head would clobber
+        if (tail.compare_exchange_weak(next_head,
+                                       next_tail,
+                                       std::memory_order_relaxed,
+                                       std::memory_order_relaxed))
+            next_head->~T(); // make room for next head
+
+        (void) new(slot) T(std::forward<Args>(args)...);
+
+        // advance head
+        head.store(next_head,
+                   std::memory_order_relaxed);
     }
 
     std::enable_if<std::is_nothrow_destructible<T>::value, bool>::type
-    pop_back(T &value)
+    try_pop_back(T &value)
     {
 
         T *const current_head = head.load(std::memory_order_relaxed);
@@ -126,8 +81,8 @@ public:
 
             // advance tail
             ++tail;
-            if (tail == end)
-                tail = begin;
+            if (tail == last)
+                tail = first;
 
             // if tail overlaps head, mark empty
             if (tail == head)
@@ -146,13 +101,13 @@ private:
     inline static T *
     allocate(const std::size_t capacity)
     {
-        // if (capacity == 0)
-        //     throw std::runtime(
-        //         "SingleWriterRingBuffer::allocate() -- capacity must be nonzero"
-        //     );
+        if (capacity == 0)
+            throw std::runtime(
+                "SingleWriterRingBuffer::allocate() -- capacity must be nonzero"
+            );
 
         T *const buffer = static_cast<T *>(
-            std::malloc(sizeof(T) * capacity)
+            std::malloc(sizeof(T) * (capacity + 1))
         );
 
         if (!buffer)
@@ -164,7 +119,7 @@ private:
     inline std::enable_if<std::is_trivially_destructible<T>::value>::type
     destroy() noexcept
     {
-        std::free(static_cast<void *>(begin));
+        std::free(static_cast<void *>(first));
     }
 
     inline std::enable_if<!std::is_trivially_destructible<T>::value>::type
@@ -173,12 +128,12 @@ private:
         T *ptr = tail;
 
         if (ptr > head) {
-            while (ptr < end) {
+            while (ptr < last) {
                 ptr->T();
                 ++ptr;
             }
 
-            ptr = begin;
+            ptr = first;
             do {
                 ptr->T();
             } while (++ptr < head);
@@ -190,11 +145,11 @@ private:
             }
         }
 
-        std::free(static_cast<void *>(begin));
+        std::free(static_cast<void *>(first));
     }
 
-    T *const   begin;
-    const T *const   end;
+    T *const   first;
+    const T *const   last;
     std::atomic<T *> head;
     std::atomic<T *> tail;
 }; // class SingleWriterRingBuffer
