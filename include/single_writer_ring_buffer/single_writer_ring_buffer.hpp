@@ -19,9 +19,15 @@ private:
     template <bool E, typename R = void>
     using enable_if_t = typename std::enable_if<E, R>::type;
 
-    template <typename ...Args, typename R = void>
-    using enable_if_trivially_destructible = enable_if_t<
-        std::is_trivially_destructible<T>::value,
+    template <typename R = void>
+    using enable_if_nothrow_destructible = enable_if_t<
+        std::is_nothrow_destructible<T>::value,
+        R
+    >;
+
+    template <typename R = void>
+    using enable_if_not_nothrow_destructible = enable_if_t<
+        std::is_nothrow_destructible<T>::value,
         R
     >;
 
@@ -50,6 +56,9 @@ public:
 
     ~SingleWriterRingBuffer()
     {
+        // ensure latest modifications have been loaded
+        std::atomic_thread_fence(std::memory_order_acquire);
+
         destroy();
     }
 
@@ -58,7 +67,6 @@ public:
     emplace_front(Args &&...args)
     {
         // advance head
-        // std::atomic_thread_fence(std::memory_order_acquire);
         T *next_head;
         T *next_tail;
 
@@ -91,6 +99,19 @@ public:
         // advance head
         head.store(next_head,
                    std::memory_order_relaxed);
+    }
+
+
+    void
+    push_front(const T &value)
+    {
+        emplace_front(value);
+    }
+
+    void
+    push_front(T &&value)
+    {
+        emplace_front(std::move(value));
     }
 
 
@@ -169,7 +190,7 @@ public:
         }
 
         // replace tail
-        tail.store(current_tail,
+        tail.store(next_tail,
                    std::memory_order_relaxed);
 
         return not_empty;
@@ -197,40 +218,63 @@ private:
         return buffer;
     }
 
-    inline std::enable_if<std::is_trivially_destructible<T>::value>::type
+
+    inline enable_if_nothrow_destructible<void>
     destroy() noexcept
     {
-        std::free(static_cast<void *>(first));
-    }
+        T *ptr;
 
-    inline std::enable_if<!std::is_trivially_destructible<T>::value>::type
-    destroy() noexcept(std::is_nothrow_destructible<T>::value)
-    {
-        T *ptr = tail;
+        if (tail <= head) {
+            for (ptr = tail; ptr < head; ++ptr)
+                ptr->~T();
 
-        if (ptr > head) {
-            while (ptr < last) {
-                ptr->T();
-                ++ptr;
-            }
 
-            ptr = first;
+        } else {
+            for (ptr = first; ptr < head; ++ptr)
+                ptr->~T();
+
+            ptr = tail;
             do {
-                ptr->T();
-            } while (++ptr < head);
-
-        } else if (ptr != nullptr) {
-            while (ptr < head) {
-                ptr->T();
-                ++ptr;
-            }
+                ptr->~T();
+            } while (++ptr <= last);
         }
 
         std::free(static_cast<void *>(first));
     }
 
-    T *const   first;
-    const T *const   last;
+    inline enable_if_not_nothrow_destructible<void>
+    destroy()
+    {
+        try {
+            T *ptr;
+
+            if (tail <= head) {
+                for (ptr = tail; ptr < head; ++ptr)
+                    ptr->~T();
+
+
+            } else {
+                for (ptr = first; ptr < head; ++ptr)
+                    ptr->~T();
+
+                ptr = tail;
+                do {
+                    ptr->~T();
+                } while (++ptr <= last);
+            }
+
+        } catch (...) {
+            // ensure buffer is freed
+            std::free(static_cast<void *>(first));
+            throw; // reraise
+        }
+
+        std::free(static_cast<void *>(first));
+    }
+
+
+    T         *const first;
+    T         *const last;
     std::atomic<T *> head;
     std::atomic<T *> tail;
 }; // class SingleWriterRingBuffer
