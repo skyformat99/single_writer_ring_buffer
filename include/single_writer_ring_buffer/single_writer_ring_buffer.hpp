@@ -5,7 +5,7 @@
 // =============================================================================
 #include <cstdlib>    // std::[malloc|free]
 #include <new>        // std::bad_alloc
-#include <stdexcept>  // std::runtime_error
+#include <stdexcept>  // std::invalid_argument
 #include <typetraits> // std::enable_if
 #include <utility>    // std::[move|forward]
 #include <atomic>     // std::atomic[_thread_fence]
@@ -204,7 +204,7 @@ private:
     allocate(const std::size_t capacity)
     {
         if (capacity == 0)
-            throw std::runtime(
+            throw std::invalid_argument(
                 "SingleWriterRingBuffer::allocate() -- capacity must be nonzero"
             );
 
