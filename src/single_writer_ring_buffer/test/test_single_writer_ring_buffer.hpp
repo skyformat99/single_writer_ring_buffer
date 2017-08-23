@@ -7,37 +7,12 @@
 
 
 
-class CtorCounter
-{
-public:
-    CtorCounter(int &count_constructed)
-    {
-        ++count_constructed;
-    }
-}; // class CtorCounter
-
-
-
-class DtorCounter
-{
-public:
-    DtorCounter(int &count_destroyed)
-        : count_destroyed(count_destroyed)
-    {}
-
-    ~DtorCounter()
-    {
-        ++count_destroyed;
-    }
-
-private:
-    int &count_destroyed;
-}; // class DtorCounter
-
-
-
 TEST(constructor, capacity_gt_zero)
 {
+    ASSERT_NO_THROW(
+        SingleWriterRingBuffer<int>(1)
+    ) << "constructor threw with valid capacity";
+
     ASSERT_THROW(
         SingleWriterRingBuffer<int>(0),
         std::invalid_argument
@@ -61,51 +36,87 @@ TEST(constructor, no_elements_constructed)
 }
 
 
+TEST(constructor, all_elements_constructed)
+{
+
+    unsigned int count_constructed;
+
+    struct CtorCounter
+    {
+    public:
+        CtorCounter()
+        {
+            ++count_constructed;
+        }
+    }; // struct CtorCounter
+
+    count_constructed = 0;
+
+    SingleWriterRingBuffer<CtorCounter> buffer(100);
+
+    for (unsigned int i = 0; i < 10; ++i)
+            buffer.emplace_front();
+
+    ASSERT_EQ(10,
+              count_constructed) << "count_constructed != count inserted";
+
+    count_constructed = 0;
+
+    for (unsigned int i = 0; i < 1000; ++i)
+            buffer.emplace_front();
+
+    ASSERT_EQ(1000,
+              count_constructed) << "count_constructed != count inserted";
+}
+
+
+TEST(destructor, no_elements_destroyed)
+{
+    struct DoNotDestroy
+    {
+        ~DoNotDestroy()
+        {
+            FAIL() << "~DoNotDestroy() called";
+        }
+    }; // struct DoNotDestroy
+
+    SingleWriterRingBuffer<DoNotDestroy>(200);
+
+    SUCCEED();
+}
+
+
 TEST(destructor, all_elements_destroyed)
 {
-    unsigned int count_destroyed = 0;
+    unsigned int count_destroyed;
 
+    struct DtorCounter
     {
-        SingleWriterRingBuffer<DtorCounter> buffer(1000);
-    }
+        ~DtorCounter()
+        {
+            ++count_destroyed;
+        }
+    }; // struct DtorCounter
 
-    ASSERT_EQ(0,
-              count_destroyed) << "destructor called on empty buffer";
 
+    count_destroyed = 0;
     {
         SingleWriterRingBuffer<DtorCounter> buffer(1000);
 
         for (unsigned int i = 0; i < 1000; ++i)
             buffer.emplace_front(count_destroyed);
     }
-
     ASSERT_EQ(1000,
               count_destroyed) << "count constructions != count destroyed";
 
 
+    count_destroyed = 0;
     {
-        SingleWriterRingBuffer<DtorCounter> buffer(1000);
+        SingleWriterRingBuffer<DtorCounter> buffer(100);
 
         for (unsigned int i = 0; i < 10000; ++i)
             buffer.emplace_front(count_destroyed);
     }
-
-    ASSERT_EQ(10000,
-              count_destroyed) << "count constructions != count destroyed";
-}
-
-
-TEST(insertion, all_elements_destroyed)
-{
-    unsigned int count_destroyed = 0;
-
-    {
-        SingleWriterRingBuffer<DtorCounter> buffer(1000);
-
-        for (unsigned int i = 0; i < 10000; ++i)
-            buffer.emplace_front();
-    }
-
     ASSERT_EQ(10000,
               count_destroyed) << "count constructions != count destroyed";
 }
