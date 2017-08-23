@@ -67,12 +67,30 @@ TEST(destructor, all_elements_destroyed)
 
     {
         SingleWriterRingBuffer<DtorCounter> buffer(1000);
+    }
+
+    ASSERT_EQ(0,
+              count_destroyed) << "destructor called on empty buffer";
+
+    {
+        SingleWriterRingBuffer<DtorCounter> buffer(1000);
 
         for (unsigned int i = 0; i < 1000; ++i)
             buffer.emplace_front(count_destroyed);
     }
 
     ASSERT_EQ(1000,
+              count_destroyed) << "count constructions != count destroyed";
+
+
+    {
+        SingleWriterRingBuffer<DtorCounter> buffer(1000);
+
+        for (unsigned int i = 0; i < 10000; ++i)
+            buffer.emplace_front(count_destroyed);
+    }
+
+    ASSERT_EQ(10000,
               count_destroyed) << "count constructions != count destroyed";
 }
 
