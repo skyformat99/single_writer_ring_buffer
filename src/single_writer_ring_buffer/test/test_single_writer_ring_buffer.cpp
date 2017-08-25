@@ -81,8 +81,6 @@ TEST(destructor, no_elements_destroyed)
     }; // struct DoNotDestroy
 
     SingleWriterRingBuffer<DoNotDestroy>(200);
-
-    SUCCEED();
 }
 
 
@@ -104,7 +102,7 @@ TEST(destructor, all_elements_destroyed)
         SingleWriterRingBuffer<DtorCounter> buffer(1000);
 
         for (unsigned int i = 0; i < 1000; ++i)
-            buffer.emplace_front(count_destroyed);
+            buffer.emplace_front();
     }
     ASSERT_EQ(1000,
               count_destroyed) << "count constructions != count destroyed";
@@ -115,7 +113,7 @@ TEST(destructor, all_elements_destroyed)
         SingleWriterRingBuffer<DtorCounter> buffer(100);
 
         for (unsigned int i = 0; i < 10000; ++i)
-            buffer.emplace_front(count_destroyed);
+            buffer.emplace_front();
     }
     ASSERT_EQ(10000,
               count_destroyed) << "count constructions != count destroyed";

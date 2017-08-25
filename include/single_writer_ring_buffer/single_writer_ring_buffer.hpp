@@ -3,12 +3,12 @@
 
 // EXTERNAL DEPENDENCIES
 // =============================================================================
-#include <cstdlib>    // std::[malloc|free]
-#include <new>        // std::bad_alloc
-#include <stdexcept>  // std::invalid_argument
-#include <typetraits> // std::enable_if
-#include <utility>    // std::[move|forward]
-#include <atomic>     // std::atomic[_thread_fence]
+#include <cstdlib>     // std::[malloc|free]
+#include <new>         // std::bad_alloc
+#include <stdexcept>   // std::invalid_argument
+#include <type_traits> // std::enable_if
+#include <utility>     // std::[move|forward]
+#include <atomic>      // std::atomic[_thread_fence]
 
 
 
@@ -115,6 +115,7 @@ public:
     }
 
 
+    template<>
     enable_if_nothrow_move_constructible_and_destructible<bool>
     try_pop_back(T &value)
     {
@@ -152,6 +153,7 @@ public:
     }
 
 
+    template<>
     enable_if_not_nothrow_move_constructible_and_destructible<bool>
     try_pop_back(T &value)
     {
