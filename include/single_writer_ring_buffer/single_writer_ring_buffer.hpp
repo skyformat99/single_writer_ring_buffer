@@ -16,35 +16,21 @@ template<typename T>
 class SingleWriterRingBuffer
 {
 private:
-    template <bool E, typename R = void>
+
+    template<bool E, typename R = void>
     using enable_if_t = typename std::enable_if<E, R>::type;
 
-    template <typename R = void>
-    using enable_if_nothrow_destructible = enable_if_t<
-        std::is_nothrow_destructible<T>::value,
-        R
-    >;
+    template<bool B>
+    using bool_constant_type = typename std::integral_constant<bool, B>::type;
 
-    template <typename R = void>
-    using enable_if_not_nothrow_destructible = enable_if_t<
-        std::is_nothrow_destructible<T>::value,
-        R
-    >;
+    typedef bool_constant_type<
+        std::is_nothrow_destructible<T>::value
+    >is_nothrow_destructible;
 
-    template <typename R = void>
-    using enable_if_nothrow_move_constructible_and_destructible = enable_if_t<
-        (   std::is_nothrow_move_constructible<T>::value
-         && std::is_nothrow_destructible<T>::value),
-        R
-    >;
-
-    template <typename R = void>
-    using enable_if_not_nothrow_move_constructible_and_destructible = enable_if_t<
-        !(   std::is_nothrow_move_constructible<T>::value
-          && std::is_nothrow_destructible<T>::value),
-        R
-    >;
-
+    typedef bool_constant_type<
+           std::is_nothrow_move_constructible<T>::value
+        && is_nothrow_destructible::value
+    >is_nothrow_move_constructible_and_destructible;
 
 public:
     SingleWriterRingBuffer(const std::size_t capacity)
@@ -115,8 +101,7 @@ public:
     }
 
 
-    template<>
-    enable_if_nothrow_move_constructible_and_destructible<bool>
+    enable_if_t<is_nothrow_move_constructible_and_destructible::value, bool>
     try_pop_back(T &value)
     {
         T *current_tail;
@@ -152,51 +137,49 @@ public:
         return not_empty;
     }
 
+    // enable_if_t<!is_nothrow_move_constructible_and_destructible::value, bool>
+    // try_pop_back(T &value)
+    // {
+    //     T *current_tail;
 
-    template<>
-    enable_if_not_nothrow_move_constructible_and_destructible<bool>
-    try_pop_back(T &value)
-    {
-        T *current_tail;
+    //     // acquire tail
+    //     do {
+    //         current_tail = tail.exchange(nullptr,
+    //                                      std::memory_order_relaxed);
+    //     } while (current_tail == nullptr);
 
-        // acquire tail
-        do {
-            current_tail = tail.exchange(nullptr,
-                                         std::memory_order_relaxed);
-        } while (current_tail == nullptr);
+    //     T *next_tail = current_tail;
 
-        T *next_tail = current_tail;
+    //     const bool not_empty = (   current_tail
+    //                             != head.load(std::memory_order_relaxed));
 
-        const bool not_empty = (   current_tail
-                                != head.load(std::memory_order_relaxed));
+    //     if (not_empty) {
+    //         // ensure tail is not accessed mid-construction (from an insertion)
+    //         std::atomic_thread_fence(std::memory_order_acquire);
 
-        if (not_empty) {
-            // ensure tail is not accessed mid-construction (from an insertion)
-            std::atomic_thread_fence(std::memory_order_acquire);
+    //         try {
+    //             value = std::move(*current_tail);
 
-            try {
-                value = std::move(*current_tail);
+    //             // advance tail
+    //             next_tail = (current_tail == last) ? first : (current_tail + 1);
 
-                // advance tail
-                next_tail = (current_tail == last) ? first : (current_tail + 1);
+    //             current_tail->~T();
 
-                current_tail->~T();
+    //         } catch (...) {
+    //             // advance tail if move succeeded
+    //             tail.store(next_tail,
+    //                        std::memory_order_relaxed);
 
-            } catch (...) {
-                // advance tail if move succeeded
-                tail.store(next_tail,
-                           std::memory_order_relaxed);
+    //             throw; // reraise
+    //         }
+    //     }
 
-                throw; // reraise
-            }
-        }
+    //     // replace tail
+    //     tail.store(next_tail,
+    //                std::memory_order_relaxed);
 
-        // replace tail
-        tail.store(next_tail,
-                   std::memory_order_relaxed);
-
-        return not_empty;
-    }
+    //     return not_empty;
+    // }
 
 
 
@@ -221,7 +204,7 @@ private:
     }
 
 
-    inline enable_if_nothrow_destructible<void>
+    inline enable_if_t<is_nothrow_destructible::value>
     destroy() noexcept
     {
         T *ptr;
@@ -244,35 +227,35 @@ private:
         std::free(static_cast<void *>(first));
     }
 
-    inline enable_if_not_nothrow_destructible<void>
-    destroy()
-    {
-        try {
-            T *ptr;
+    // inline enable_if_t<!is_nothrow_destructible::value>
+    // destroy()
+    // {
+    //     try {
+    //         T *ptr;
 
-            if (tail <= head) {
-                for (ptr = tail; ptr < head; ++ptr)
-                    ptr->~T();
+    //         if (tail <= head) {
+    //             for (ptr = tail; ptr < head; ++ptr)
+    //                 ptr->~T();
 
 
-            } else {
-                for (ptr = first; ptr < head; ++ptr)
-                    ptr->~T();
+    //         } else {
+    //             for (ptr = first; ptr < head; ++ptr)
+    //                 ptr->~T();
 
-                ptr = tail;
-                do {
-                    ptr->~T();
-                } while (++ptr <= last);
-            }
+    //             ptr = tail;
+    //             do {
+    //                 ptr->~T();
+    //             } while (++ptr <= last);
+    //         }
 
-        } catch (...) {
-            // ensure buffer is freed
-            std::free(static_cast<void *>(first));
-            throw; // reraise
-        }
+    //     } catch (...) {
+    //         // ensure buffer is freed
+    //         std::free(static_cast<void *>(first));
+    //         throw; // reraise
+    //     }
 
-        std::free(static_cast<void *>(first));
-    }
+    //     std::free(static_cast<void *>(first));
+    // }
 
 
     T         *const first;
