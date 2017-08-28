@@ -15,23 +15,6 @@
 template<typename T>
 class SingleWriterRingBuffer
 {
-private:
-
-    template<bool E, typename R = void>
-    using enable_if_t = typename std::enable_if<E, R>::type;
-
-    template<bool B>
-    using bool_constant_type = typename std::integral_constant<bool, B>::type;
-
-    typedef bool_constant_type<
-        std::is_nothrow_destructible<T>::value
-    >is_nothrow_destructible;
-
-    typedef bool_constant_type<
-           std::is_nothrow_move_constructible<T>::value
-        && is_nothrow_destructible::value
-    >is_nothrow_move_constructible_and_destructible;
-
 public:
     SingleWriterRingBuffer(const std::size_t capacity)
         : first(allocate(capacity)), // pointer to first element in buffer
@@ -40,17 +23,25 @@ public:
           tail(first)
     {}
 
-    ~SingleWriterRingBuffer()
+    ~SingleWriterRingBuffer() noexcept(std::is_nothrow_destructible<T>::value)
     {
         // ensure latest modifications have been loaded
         std::atomic_thread_fence(std::memory_order_acquire);
 
-        destroy<is_nothrow_destructible::value>();
+        destroy<
+            std::is_nothrow_destructible<T>::value
+        >();
     }
 
     template<typename ...Args>
     void
-    emplace_front(Args &&...args)
+    emplace_front(Args &&...args) noexcept(
+                                      std::is_nothrow_destructible<T>::value
+                                   && std::is_nothrow_constructible<
+                                          T,
+                                          Args &&...
+                                      >::value
+                                  )
     {
         // advance head
         T *next_head;
@@ -89,30 +80,37 @@ public:
 
 
     void
-    push_front(const T &value)
+    push_front(const T &value) noexcept(noexcept(emplace_front(value)))
     {
         emplace_front(value);
     }
 
     void
-    push_front(T &&value)
+    push_front(T &&value) noexcept(noexcept(emplace_front(std::move(value))))
     {
         emplace_front(std::move(value));
     }
 
     bool
-    try_pop_back(T &value)
+    try_pop_back(T &value) noexcept(
+                               std::is_nothrow_move_constructible<T>::value
+                            && std::is_nothrow_destructible<T>::value
+                           )
     {
         return try_pop_back<
-            is_nothrow_move_constructible_and_destructible::value
+            std::is_nothrow_move_constructible<T>::value
+         && std::is_nothrow_destructible<T>::value
         >(value);
     }
 
 
 private:
+    template<bool E, typename R = void>
+    using enable_if_t = typename std::enable_if<E, R>::type;
+
     template<bool IsNothrowMoveConstructibleAndDestructible>
     inline enable_if_t<IsNothrowMoveConstructibleAndDestructible, bool>
-    try_pop_back(T &value)
+    try_pop_back(T &value) noexcept
     {
         T *current_tail;
 
@@ -219,7 +217,6 @@ private:
         if (tail <= head) {
             for (ptr = tail; ptr < head; ++ptr)
                 ptr->~T();
-
 
         } else {
             for (ptr = first; ptr < head; ++ptr)
