@@ -1,4 +1,4 @@
-foreach(component constructor destructor)
+foreach(component construction destruction insertion)
     add_google_test(
         NAME    test_single_writer_ring_buffer_${component}
         SOURCES test_single_writer_ring_buffer_${component}.cpp

@@ -6,7 +6,7 @@
 
 
 
-TEST(constructor, capacity_gt_zero)
+TEST(construction, capacity_gt_zero)
 {
     ASSERT_NO_THROW(
         SingleWriterRingBuffer<int>(1)
@@ -19,7 +19,7 @@ TEST(constructor, capacity_gt_zero)
 }
 
 
-TEST(constructor, no_elements_constructed)
+TEST(construction, no_elements_constructed)
 {
     struct DoNotConstruct
     {
@@ -35,7 +35,7 @@ TEST(constructor, no_elements_constructed)
 }
 
 
-TEST(constructor, all_elements_constructed)
+TEST(construction, all_elements_constructed)
 {
     unsigned int count_constructed;
 

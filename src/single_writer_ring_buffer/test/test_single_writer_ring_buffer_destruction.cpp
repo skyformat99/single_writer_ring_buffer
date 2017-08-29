@@ -6,7 +6,7 @@
 
 
 
-TEST(destructor, no_elements_destroyed)
+TEST(destruction, no_elements_destroyed)
 {
     struct DoNotDestroy
     {
@@ -22,7 +22,7 @@ TEST(destructor, no_elements_destroyed)
 }
 
 
-TEST(destructor, all_elements_destroyed)
+TEST(destruction, all_elements_destroyed)
 {
     unsigned int count_destroyed;
 
