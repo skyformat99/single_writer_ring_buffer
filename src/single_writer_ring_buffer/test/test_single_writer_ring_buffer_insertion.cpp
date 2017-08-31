@@ -35,7 +35,47 @@ private:
     template<typename T>
     class iterator_base : public std::iterator<std::random_access_iterator_tag, T>
     {
+    public:
+        explicit
+        iterator_base(T *const ptr)
+            : cursor(ptr)
+        {}
 
+        iterator_base&
+        operator++()
+        {
+            ++cursor;
+            return *this;
+        }
+
+        iterator_base
+        operator++()(int)
+        {
+            T *const prev_cursor = cursor++;
+            return iterator_base(prev_cursor);
+        }
+
+        bool
+        operator==(const iterator_base &other)
+        {
+            return cursor == other.cursor;
+        }
+
+        bool
+        operator!=(const iterator_base &other)
+        {
+            return cursor != other.cursor;
+        }
+
+        reference
+        operator*() const
+        {
+            return *cursor;
+        }
+
+
+    private:
+        T *cursor;
     }; // class iterator_base
 
 public:
