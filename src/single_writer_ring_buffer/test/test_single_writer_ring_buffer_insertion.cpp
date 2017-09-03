@@ -1,5 +1,7 @@
 #include <utility>               // std::move
 #include <thread>                // std::thread
+#include <algorithm>             // std::min
+#include <iterator>              // std::distance
 #include "gtest/gtest.h"         // TEST, ASSERT_*
 #include "mail_box/mail_box.hpp" // MailBox
 
@@ -10,16 +12,21 @@
 
 TEST(insertion, single_thread)
 {
+    static const std::size_t mail_box_size = 100;
+
     for (std::size_t buffer_size = 1000; buffer_size >= 10; buffer_size /= 10) {
-        MailBox<int, 100> mail_box;
+        MailBox<int, mail_box_size> mail_box;
+        int prev;
         int next;
 
         SingleWriterRingBuffer<int> buffer(buffer_size);
 
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < mail_box_size; ++i)
             buffer.emplace_front(i);
 
-        for (int i = 0; i < 100; ++i) {
+        const std::size_t buffer_count = std::min(mail_box_size, buffer_size);
+
+        for (int i = 0; i < buffer_count; ++i) {
             ASSERT_TRUE(buffer.try_pop_back(next)) << "buffer under-filled";
 
             mail_box.push_back(next);
@@ -27,11 +34,21 @@ TEST(insertion, single_thread)
 
         ASSERT_FALSE(buffer.try_pop_back(next)) << "buffer over-filled";
 
-        MailBox<int, 100>::const_iterator mail_box_iter = mail_box.cbegin();
+        auto       mail_box_iter = mail_box.cbegin();
+        const auto mail_box_end  = mail_box.cend();
 
-        for (int i = 0; i < 100; ++mail_box_iter, ++i)
-            ASSERT_EQ(i, *mail_box_iter) << "insertions out of order";
+        ASSERT_EQ(buffer_count,
+                  std::distance(mail_box_iter,
+                                mail_box_end)) << "invalid mail_box";
 
-        ASSERT_EQ(mail_box.cend(), mail_box_iter) << "mail_box over-filled";
+        prev = *mail_box_iter;
+
+        while (++mail_box_iter != mail_box_end) {
+            next = *mail_box_iter;
+
+            ASSERT_LT(prev, next) << "insertions out of order";
+
+            prev = next;
+        }
     }
 }

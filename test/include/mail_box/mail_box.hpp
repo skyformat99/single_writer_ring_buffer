@@ -27,16 +27,17 @@ public:
     void
     push_back(T &&value)
     {
-        T *const next = cursor.fetch_add(std::memory_order_relaxed);
+        T *const next = cursor.fetch_add(1, std::memory_order_relaxed);
         *next         = std::move(value);
     }
+
 
 private:
     template<typename U>
     class iterator_base
     {
     public:
-        typedef std::random_access_iterator_tag iterator_type;
+        typedef std::random_access_iterator_tag iterator_category;
         typedef U                               value_type;
         typedef std::ptrdiff_t                  difference_type;
         typedef U                              *pointer;
@@ -93,40 +94,69 @@ private:
 
         // comparison
         // ---------------------------------------------------------------------
-        bool
-        operator==(const iterator_base &other) const noexcept
+        friend bool
+        operator==(const iterator_base &lhs,
+                   const iterator_base &rhs) noexcept
         {
-            return cursor == other.cursor;
+            return lhs.cursor == rhs.cursor;
         }
 
-        bool
-        operator!=(const iterator_base &other) const noexcept
+        friend bool
+        operator!=(const iterator_base &lhs,
+                   const iterator_base &rhs) noexcept
         {
-            return cursor != other.cursor;
+            return lhs.cursor != rhs.cursor;
         }
 
-        bool
-        operator<(const iterator_base &other) const noexcept
+        friend bool
+        operator<(const iterator_base &lhs,
+                  const iterator_base &rhs) noexcept
         {
-            return cursor < other.cursor;
+            return lhs.cursor < rhs.cursor;
         }
 
-        bool
-        operator>(const iterator_base &other) const noexcept
+        friend bool
+        operator>(const iterator_base &lhs,
+                  const iterator_base &rhs) noexcept
         {
-            return cursor > other.cursor;
+            return lhs.cursor > rhs.cursor;
         }
 
-        bool
-        operator<=(const iterator_base &other) const noexcept
+        friend bool
+        operator<=(const iterator_base &lhs,
+                   const iterator_base &rhs) noexcept
         {
-            return cursor <= other.cursor;
+            return lhs.cursor <= rhs.cursor;
         }
 
-        bool
-        operator>=(const iterator_base &other) const noexcept
+        friend bool
+        operator>=(const iterator_base &lhs,
+                   const iterator_base &rhs) noexcept
         {
-            return cursor >= other.cursor;
+            return lhs.cursor >= rhs.cursor;
+        }
+
+        // distance
+        // ---------------------------------------------------------------------
+        friend iterator_base
+        operator+(const iterator_base  &lhs,
+                  const difference_type rhs) noexcept
+        {
+            return iterator_base(lhs.cursor + rhs);
+        }
+
+        friend iterator_base
+        operator+(const difference_type lhs,
+                  const iterator_base  &rhs) noexcept
+        {
+            return iterator_base(lhs + rhs.cursor);
+        }
+
+        friend difference_type
+        operator-(const iterator_base &lhs,
+                  const iterator_base &rhs) noexcept
+        {
+            return lhs.cursor - rhs.cursor;
         }
 
         // access
@@ -135,6 +165,13 @@ private:
         operator*() const noexcept(noexcept(*cursor))
         {
             return *cursor;
+        }
+
+        reference
+        operator[](const difference_type pos)
+        {
+            return cursor[pos];
+
         }
 
         pointer
@@ -152,22 +189,26 @@ public:
     typedef iterator_base<T>       iterator;
     typedef iterator_base<const T> const_iterator;
 
-    iterator begin() const noexcept
+    iterator
+    begin() const noexcept
     {
         return iterator(&buffer[0]);
     }
 
-    iterator end() const noexcept
+    iterator
+    end() const noexcept
     {
         return iterator(cursor.load(std::memory_order_relaxed));
     }
 
-    const_iterator cbegin() const noexcept
+    const_iterator
+    cbegin() const noexcept
     {
         return const_iterator(&buffer[0]);
     }
 
-    const_iterator cend() const noexcept
+    const_iterator
+    cend() const noexcept
     {
         return const_iterator(cursor.load(std::memory_order_relaxed));
     }
