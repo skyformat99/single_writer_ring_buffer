@@ -3,7 +3,7 @@
 
 // EXTERNAL DEPENDENCIES
 // =============================================================================
-#include <utililty> // std::move
+#include <utility>  // std::move
 #include <iterator> // std::iterator
 #include <atomic>   // std::atomic
 
@@ -32,54 +32,56 @@ public:
     }
 
 private:
-    template<typename T>
-    class iterator_base : public std::iterator<std::random_access_iterator_tag, T>
+    template<typename U>
+    class iterator_base
+        : public std::iterator<std::random_access_iterator_tag, U>
     {
     public:
+        typedef typename std::iterator::difference_type difference_type;
         explicit
-        iterator_base(T *const ptr)
+        iterator_base(U *const ptr) noexcept
             : cursor(ptr)
         {}
 
         // advancement
         // ---------------------------------------------------------------------
-        iterator_base&
-        operator++()
+        iterator_base &
+        operator++() noexcept
         {
             ++cursor;
             return *this;
         }
 
         iterator_base
-        operator++()(int)
+        operator++(int) noexcept
         {
-            T *const prev_cursor = cursor++;
+            U *const prev_cursor = cursor++;
             return iterator_base(prev_cursor);
         }
 
         iterator_base &
-        operator+=(const difference_type pos)
+        operator+=(const difference_type pos) noexcept
         {
             cursor += pos;
             return *this;
         }
 
-        iterator_base&
-        operator--()
+        iterator_base &
+        operator--() noexcept
         {
             --cursor;
             return *this;
         }
 
         iterator_base
-        operator--()(int)
+        operator--(int) noexcept
         {
-            T *const prev_cursor = cursor--;
+            U *const prev_cursor = cursor--;
             return iterator_base(prev_cursor);
         }
 
         iterator_base &
-        operator-=(const difference_type pos)
+        operator-=(const difference_type pos) noexcept
         {
             cursor -= pos;
             return *this;
@@ -88,37 +90,37 @@ private:
         // comparison
         // ---------------------------------------------------------------------
         bool
-        operator==(const iterator_base &other)
+        operator==(const iterator_base &other) const noexcept
         {
             return cursor == other.cursor;
         }
 
         bool
-        operator!=(const iterator_base &other)
+        operator!=(const iterator_base &other) const noexcept
         {
             return cursor != other.cursor;
         }
 
         bool
-        operator<const iterator_base &other)
+        operator<(const iterator_base &other) const noexcept
         {
             return cursor < other.cursor;
         }
 
         bool
-        operator>const iterator_base &other)
+        operator>(const iterator_base &other) const noexcept
         {
             return cursor > other.cursor;
         }
 
         bool
-        operator<=const iterator_base &other)
+        operator<=(const iterator_base &other) const noexcept
         {
             return cursor <= other.cursor;
         }
 
         bool
-        operator>=const iterator_base &other)
+        operator>=(const iterator_base &other) const noexcept
         {
             return cursor >= other.cursor;
         }
@@ -126,20 +128,20 @@ private:
         // access
         // ---------------------------------------------------------------------
         reference
-        operator*() const
+        operator*() const noexcept(noexcept(*cursor))
         {
             return *cursor;
         }
 
         pointer
-        operator->() const
+        operator->() const noexcept
         {
             return cursor;
         }
 
 
     private:
-        T *cursor;
+        U *cursor;
     }; // class iterator_base
 
 public:
@@ -167,8 +169,8 @@ public:
     }
 
 private:
-    T buffer[N];
-    T *cursor;
+    T                buffer[N];
+    std::atomic<T *> cursor;
 }; // class MailBox
 
 #endif // ifndef MAIL_BOX_MAIL_BOX_HPP

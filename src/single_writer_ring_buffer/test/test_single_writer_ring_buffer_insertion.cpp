@@ -1,6 +1,6 @@
-#include <utililty>             // std::move
-#include <thread>               // std::thread
-#include "gtest/gtest.h"        // TEST, ASSERT_*
+#include <utility>               // std::move
+#include <thread>                // std::thread
+#include "gtest/gtest.h"         // TEST, ASSERT_*
 #include "mail_box/mail_box.hpp" // MailBox
 
 // SingleWriterRingBuffer
