@@ -4,7 +4,7 @@
 // EXTERNAL DEPENDENCIES
 // =============================================================================
 #include <utility>  // std::move
-#include <iterator> // std::iterator
+#include <iterator> // std::random_access_iterator_tag
 #include <atomic>   // std::atomic
 
 
@@ -34,10 +34,14 @@ public:
 private:
     template<typename U>
     class iterator_base
-        : public std::iterator<std::random_access_iterator_tag, U>
     {
     public:
-        typedef typename std::iterator::difference_type difference_type;
+        typedef std::random_access_iterator_tag iterator_type;
+        typedef U                               value_type;
+        typedef std::ptrdiff_t                  difference_type;
+        typedef U                              *pointer;
+        typedef U                              &reference;
+
         explicit
         iterator_base(U *const ptr) noexcept
             : cursor(ptr)
@@ -155,7 +159,7 @@ public:
 
     iterator end() const noexcept
     {
-        return iterator(cursor.fetch(std::memory_order_relaxed));
+        return iterator(cursor.load(std::memory_order_relaxed));
     }
 
     const_iterator cbegin() const noexcept
@@ -165,7 +169,7 @@ public:
 
     const_iterator cend() const noexcept
     {
-        return const_iterator(cursor.fetch(std::memory_order_relaxed));
+        return const_iterator(cursor.load(std::memory_order_relaxed));
     }
 
 private:

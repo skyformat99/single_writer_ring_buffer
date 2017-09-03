@@ -12,6 +12,7 @@ TEST(insertion, single_thread)
 {
     for (std::size_t buffer_size = 1000; buffer_size >= 10; buffer_size /= 10) {
         MailBox<int, 100> mail_box;
+        int next;
 
         SingleWriterRingBuffer<int> buffer(buffer_size);
 
@@ -19,12 +20,12 @@ TEST(insertion, single_thread)
             buffer.emplace_front(i);
 
         for (int i = 0; i < 100; ++i) {
-            ASSERT_TRUE(try_pop_back(next)) << "buffer under-filled";
+            ASSERT_TRUE(buffer.try_pop_back(next)) << "buffer under-filled";
 
             mail_box.push_back(next);
         }
 
-        ASSERT_FALSE(try_pop_back(next)) << "buffer over-filled";
+        ASSERT_FALSE(buffer.try_pop_back(next)) << "buffer over-filled";
 
         MailBox<int, 100>::const_iterator mail_box_iter = mail_box.cbegin();
 
