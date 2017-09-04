@@ -190,13 +190,13 @@ public:
     typedef iterator_base<const T> const_iterator;
 
     iterator
-    begin() const noexcept
+    begin() noexcept
     {
         return iterator(&buffer[0]);
     }
 
     iterator
-    end() const noexcept
+    end() noexcept
     {
         return iterator(cursor.load(std::memory_order_relaxed));
     }
