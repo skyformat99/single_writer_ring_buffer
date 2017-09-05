@@ -1,4 +1,3 @@
-#include <utility>               // std::move
 #include <thread>                // std::thread
 #include <atomic>                // std::atomic
 #include <bitset>                // std::bitset
@@ -72,10 +71,9 @@ TEST(insertion, multi_thread)
         consumers.emplace_back([&] {
             unsigned int integer;
 
-            while (continue_consuming) {
+            while (continue_consuming)
                 if (buffer.try_pop_back(integer))
                     mail_box.push_back(integer);
-            }
 
             while (buffer.try_pop_back(integer))
                 mail_box.push_back(integer);

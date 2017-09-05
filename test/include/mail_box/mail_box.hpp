@@ -162,13 +162,13 @@ private:
         // access
         // ---------------------------------------------------------------------
         reference
-        operator*() const noexcept(noexcept(*cursor))
+        operator*() noexcept(noexcept(*cursor))
         {
             return *cursor;
         }
 
         reference
-        operator[](const difference_type pos)
+        operator[](const difference_type pos) noexcept(noexcept(cursor[pos]))
         {
             return cursor[pos];
 

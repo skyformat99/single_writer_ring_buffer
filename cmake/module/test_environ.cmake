@@ -39,16 +39,16 @@ add_custom_target(
     COMMAND ${CMAKE_CTEST_COMMAND}
 )
 
-# 'make build_test_verbose' to build and run tests (with verbose output)
+# 'make verbose_build_test' to build and run tests (with verbose output)
 add_custom_target(
-    build_test_verbose
+    verbose_build_test
     COMMAND ${CMAKE_CTEST_COMMAND} --extra-verbose --output-on-failure
 )
 
-# 'make test_verbose' to run tests (with verbose output)
+# 'make verbose_test' to run tests (with verbose output)
 add_custom_target(
-    test_verbose
+    verbose_test
     COMMAND ${CMAKE_CTEST_COMMAND} --extra-verbose --output-on-failure
 )
 
-set(PROJECT_BUILD_TEST_COMMANDS build_test build_test_verbose)
+set(PROJECT_BUILD_TEST_COMMANDS build_test verbose_build_test)

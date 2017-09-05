@@ -7,7 +7,7 @@ project(
 )
 
 # cmake options
-set(CMAKE_VERBOSE_MAKEFILE on)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(CMAKE_CXX_STANDARD     11)
 option(BUILD_TESTING "Enable unit testing." ON)
 
